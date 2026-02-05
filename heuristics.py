@@ -19,7 +19,7 @@ PAWN_TABLE = [
     50, 50, 50, 50, 50, 50, 50, 50,
     10, 10, 20, 40, 40, 20, 10, 10,
      5,  5, 20, 80, 80, 20,  5,  5,
-     0,  0, 15, 100, 100, 15,  0,  0,
+     0,  0, 15, 80, 80, 15,  0,  0,
      5,  5, 10, 20, 20, 10,  5,  5,
      5, 10, 10,-20,-20, 10, 10,  5,
      0,  0,  0,  0,  0,  0,  0,  0
@@ -66,7 +66,7 @@ QUEEN_TABLE = [
       0,  0,  5,  5,  5,  5,  0, -5,
     -10,  5,  5,  5,  5,  5,  0,-10,
     -10,  0,  5,  0,  0,  0,  0,-10,
-    -20,-10,-10, -5, -5,-10,-10,-20
+    -20,-10,-10, 5, 5,-10,-10,-20
 ]
 
 KING_TABLE = [
@@ -105,7 +105,7 @@ def evaluate_board(board):
         piece = board.piece_at(square)
         if piece is not None:
             val = PIECE_VALUES[piece.piece_type]
-            
+
             # Tables are defined from White's perspective: Row 0 is Rank 8, Row 7 is Rank 1.
             # White a1 (sq 0) -> Rank 1 (index 56)
             # Black a8 (sq 56) -> Black's Rank 1 (index 56)
