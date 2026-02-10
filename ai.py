@@ -17,7 +17,7 @@ class ChessAI:
 
         for move in moves:
             board.push(move)
-            board_value = self.minimax(board, self.depth - 1, alpha, beta, not (board.turn == chess.WHITE))
+            board_value = self.minimax(board, self.depth - 1, alpha, beta, board.turn == chess.WHITE)
             board.pop()
 
             if board.turn == chess.WHITE:
@@ -40,41 +40,31 @@ class ChessAI:
         """Sort moves to improve Alpha-Beta pruning performance.
         Prioritizes:
         1. Captures (MVV-LVA: Most Valuable Victim - Least Valuable Aggressor)
-        2. Other moves (by basic heuristic evaluation)
+        2. Killer moves or other heuristics could be added here
         """
         moves = list(board.legal_moves)
         move_scores = []
         
         for move in moves:
             score = 0
-            # MVV-LVA for captures
             captured_piece = board.piece_at(move.to_square)
             if captured_piece:
-                # Value ranges from ~100 to ~20000. 
-                # Formula: 10 * VictimValue - AggressorValue
-                # This ensures we prefer taking a Queen with a Pawn over taking a Pawn with a Queen.
                 aggressor_type = board.piece_at(move.from_square).piece_type
+                # MVV-LVA: Formula: 10 * VictimValue - AggressorValue
                 score = 10 * PIECE_VALUES[captured_piece.piece_type] - PIECE_VALUES[aggressor_type]
-                score += 100000  # Ensure captures are evaluated before non-captures in ordering
-            else:
-                # For non-captures, we can still use the heuristic, but maybe less weight
-                # Or just keep them below captures for ordering
-                # board.push(move)
-                # score = evaluate_board(board)
-                # board.pop()
-                score = 0 # Simple ordering for non-captures to save time, or use heuristic
+                score += 10000  # Ensure captures are evaluated before non-captures
             
             move_scores.append((score, move))
         
-        # Sort descending - highest scores first for both colors because we've 
-        # normalized the score to "goodness for current player"
         move_scores.sort(key=lambda x: x[0], reverse=True)
-            
         return [m[1] for m in move_scores]
 
     def minimax(self, board, depth, alpha, beta, is_maximizing):
-        if depth == 0 or board.is_game_over():
+        if board.is_game_over():
             return evaluate_board(board)
+        
+        if depth == 0:
+            return self.quiescence_search(board, alpha, beta, is_maximizing)
 
         moves = self.order_moves(board)
 
@@ -100,3 +90,62 @@ class ChessAI:
                 if beta <= alpha:
                     break
             return min_eval
+
+    def quiescence_search(self, board, alpha, beta, is_maximizing):
+        """Continues searching captures until a 'quiet' position is reached."""
+        stand_pat = evaluate_board(board)
+        
+        if is_maximizing:
+            if stand_pat >= beta:
+                return beta
+            if alpha < stand_pat:
+                alpha = stand_pat
+            
+            # Only consider captures in quiescence search
+            moves = [m for m in board.legal_moves if board.is_capture(m)]
+            # Sort captures by MVV-LVA for better pruning
+            move_scores = []
+            for move in moves:
+                captured_piece = board.piece_at(move.to_square)
+                aggressor_type = board.piece_at(move.from_square).piece_type
+                score = 10 * PIECE_VALUES[captured_piece.piece_type if captured_piece else chess.PAWN] - PIECE_VALUES[aggressor_type]
+                move_scores.append((score, move))
+            move_scores.sort(key=lambda x: x[0], reverse=True)
+            moves = [m[1] for m in move_scores]
+
+            for move in moves:
+                board.push(move)
+                eval = self.quiescence_search(board, alpha, beta, False)
+                board.pop()
+                
+                if eval >= beta:
+                    return beta
+                if eval > alpha:
+                    alpha = eval
+            return alpha
+        else:
+            if stand_pat <= alpha:
+                return alpha
+            if beta > stand_pat:
+                beta = stand_pat
+                
+            moves = [m for m in board.legal_moves if board.is_capture(m)]
+            move_scores = []
+            for move in moves:
+                captured_piece = board.piece_at(move.to_square)
+                aggressor_type = board.piece_at(move.from_square).piece_type
+                score = 10 * PIECE_VALUES[captured_piece.piece_type if captured_piece else chess.PAWN] - PIECE_VALUES[aggressor_type]
+                move_scores.append((score, move))
+            move_scores.sort(key=lambda x: x[0], reverse=True)
+            moves = [m[1] for m in move_scores]
+
+            for move in moves:
+                board.push(move)
+                eval = self.quiescence_search(board, alpha, beta, True)
+                board.pop()
+                
+                if eval <= alpha:
+                    return alpha
+                if eval < beta:
+                    beta = eval
+            return beta
