@@ -89,14 +89,17 @@ TABLES = {
     chess.KING: KING_TABLE
 }
 
-def evaluate_board(board):
+def evaluate_board(board, depth=0):
     if board.is_checkmate():
+        # Score adjusted by depth to prefer shorter mates
+        mate_score = 99999 + depth
         if board.turn == chess.WHITE:
-            return -99999
+            return -mate_score
         else:
-            return 99999
+            return mate_score
     
-    if board.is_stalemate() or board.is_insufficient_material():
+    # All draws (stalemate, repetition, etc.) should be 0
+    if board.is_game_over():
         return 0
 
     score = 0

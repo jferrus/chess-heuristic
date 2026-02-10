@@ -61,7 +61,7 @@ class ChessAI:
 
     def minimax(self, board, depth, alpha, beta, is_maximizing):
         if board.is_game_over():
-            return evaluate_board(board)
+            return evaluate_board(board, depth)
         
         if depth == 0:
             return self.quiescence_search(board, alpha, beta, is_maximizing)
@@ -93,22 +93,34 @@ class ChessAI:
 
     def quiescence_search(self, board, alpha, beta, is_maximizing):
         """Continues searching captures until a 'quiet' position is reached."""
-        stand_pat = evaluate_board(board)
+        if board.is_game_over():
+            return evaluate_board(board, 0)
+
+        in_check = board.is_check()
+        stand_pat = evaluate_board(board, 0)
         
         if is_maximizing:
-            if stand_pat >= beta:
-                return beta
-            if alpha < stand_pat:
-                alpha = stand_pat
+            if not in_check:
+                if stand_pat >= beta:
+                    return beta
+                if alpha < stand_pat:
+                    alpha = stand_pat
             
-            # Only consider captures in quiescence search
-            moves = [m for m in board.legal_moves if board.is_capture(m)]
-            # Sort captures by MVV-LVA for better pruning
+            # If in check, consider all moves to get out of check
+            # Otherwise, only consider captures
+            if in_check:
+                moves = list(board.legal_moves)
+            else:
+                moves = [m for m in board.legal_moves if board.is_capture(m)]
+                
             move_scores = []
             for move in moves:
                 captured_piece = board.piece_at(move.to_square)
                 aggressor_type = board.piece_at(move.from_square).piece_type
-                score = 10 * PIECE_VALUES[captured_piece.piece_type if captured_piece else chess.PAWN] - PIECE_VALUES[aggressor_type]
+                # Default score for non-captures in check is 0 (will be evaluated after captures)
+                score = 0
+                if captured_piece:
+                    score = 10 * PIECE_VALUES[captured_piece.piece_type if captured_piece else chess.PAWN] - PIECE_VALUES[aggressor_type]
                 move_scores.append((score, move))
             move_scores.sort(key=lambda x: x[0], reverse=True)
             moves = [m[1] for m in move_scores]
@@ -124,17 +136,24 @@ class ChessAI:
                     alpha = eval
             return alpha
         else:
-            if stand_pat <= alpha:
-                return alpha
-            if beta > stand_pat:
-                beta = stand_pat
+            if not in_check:
+                if stand_pat <= alpha:
+                    return alpha
+                if beta > stand_pat:
+                    beta = stand_pat
                 
-            moves = [m for m in board.legal_moves if board.is_capture(m)]
+            if in_check:
+                moves = list(board.legal_moves)
+            else:
+                moves = [m for m in board.legal_moves if board.is_capture(m)]
+                
             move_scores = []
             for move in moves:
                 captured_piece = board.piece_at(move.to_square)
                 aggressor_type = board.piece_at(move.from_square).piece_type
-                score = 10 * PIECE_VALUES[captured_piece.piece_type if captured_piece else chess.PAWN] - PIECE_VALUES[aggressor_type]
+                score = 0
+                if captured_piece:
+                    score = 10 * PIECE_VALUES[captured_piece.piece_type if captured_piece else chess.PAWN] - PIECE_VALUES[aggressor_type]
                 move_scores.append((score, move))
             move_scores.sort(key=lambda x: x[0], reverse=True)
             moves = [m[1] for m in move_scores]
